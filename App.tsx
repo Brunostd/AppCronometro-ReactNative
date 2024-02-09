@@ -1,117 +1,177 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {Component} from 'react';
 import {
+  Image,
   SafeAreaView,
-  ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
+  TouchableOpacity,
   View,
 } from 'react-native';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+interface CronometroState {
+  contador: number;
+  buttonName: String;
+  lastCount: number;
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+interface CronometroManager {
+  iniciarContador(callback: (contador: number) => void): void;
+  limparContador(callback: () => void): void;
+  getButtonName(callback: (buttonName: String) => void): void;
+  getLastCount(callback: (lastCount: number) => void): void;
+}
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+class CronometroManagerImpl implements CronometroManager {
+  private timer: NodeJS.Timeout | null = null;
+  private contador: number = 0.0;
+  private buttonName: String = 'Iniciar';
+  private lastCount: number = 0.0;
 
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+  iniciarContador(callback: (contador: number) => void) {
+    if (this.timer !== null) {
+      clearInterval(this.timer);
+      this.timer = null;
+      this.buttonName = 'Iniciar';
+    } else {
+      this.timer = setInterval(() => {
+        this.contador += 0.1;
+        callback(this.contador);
+      }, 100);
+      this.buttonName = 'Parar';
+    }
+  }
+
+  limparContador(callback: () => void) {
+    if (this.timer !== null) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.lastCount = this.contador;
+    this.contador = 0.0;
+    callback();
+  }
+
+  getButtonName(callback: (buttonName: String) => void): void {
+    callback(this.buttonName);
+  }
+
+  getLastCount(callback: (lastCount: number) => void): void {
+    callback(this.lastCount);
+  }
+}
+
+class App extends Component<{}, CronometroState> {
+  private cronometroManager: CronometroManager;
+
+  constructor(props: {}) {
+    super(props);
+    this.state = {
+      contador: 0.0,
+      buttonName: 'Iniciar',
+      lastCount: 0.0,
+    };
+    this.cronometroManager = new CronometroManagerImpl();
+  }
+
+  iniciarContador() {
+    this.cronometroManager.iniciarContador(contador => {
+      this.setState({contador});
+    });
+    this.setButtonName();
+  }
+
+  limparContador() {
+    this.cronometroManager.limparContador(() => {
+      this.setState({
+        contador: 0.0,
+      });
+    });
+    this.setButtonName();
+    this.setLastCount();
+  }
+
+  setButtonName() {
+    this.cronometroManager.getButtonName(buttonName => {
+      this.setState({buttonName});
+    });
+  }
+
+  setLastCount() {
+    this.cronometroManager.getLastCount(last => {
+      this.setState({
+        lastCount: last,
+      });
+    });
+  }
+
+  render(): React.ReactNode {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Image
+          source={require('./src/cronometro.png')}
+          style={styles.imgCronometro}
+        />
+        <Text style={styles.timer}>{this.state.contador.toFixed(1)}</Text>
+        <View style={styles.btnArea}>
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={() => this.iniciarContador()}>
+            <Text style={styles.btnContent}>{this.state.buttonName}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={() => this.limparContador()}>
+            <Text style={styles.btnContent}>Limpar</Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+        <View style={styles.containerLastCount}>
+          <Text style={styles.contentLastCount}>
+            Ultimo tempo: {this.state.lastCount.toFixed(1)}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    flex: 1,
+    backgroundColor: '#00aeef',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  imgCronometro: {},
+  timer: {
+    marginTop: -160,
+    color: 'white',
+    fontSize: 65,
+    fontWeight: 'bold',
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  btnArea: {
+    flexDirection: 'row',
+    marginTop: 80,
+    height: 40,
   },
-  highlight: {
-    fontWeight: '700',
+  btn: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: 17,
+    backgroundColor: '#fff',
+    height: 40,
+    borderRadius: 16,
+  },
+  btnContent: {
+    color: 'black',
+  },
+  containerLastCount: {
+    marginTop: 40,
+  },
+  contentLastCount: {
+    fontSize: 28,
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 
